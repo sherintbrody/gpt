@@ -12,10 +12,7 @@ export default async function DashboardContent() {
   noStore();
   await connectDB();
 
-  // Only closed trades affect P&L/Win rate
-  const trades = await Trade.find({
-    $or: [{ status: "closed" }, { status: { $exists: false } }]
-  })
+  const trades = await Trade.find({ $or: [{ status: "closed" }, { status: { $exists: false } }] })
     .sort({ exitTime: 1 })
     .lean();
 
@@ -36,7 +33,6 @@ export default async function DashboardContent() {
   const sumLossesAbs = Math.abs(losers.reduce((s: number, t: any) => s + (t.netPnl || 0), 0));
   const profitFactor = sumLossesAbs > 0 ? sumWins / sumLossesAbs : (sumWins > 0 ? Infinity : 0);
 
-  // Daily P&L and equity
   const byDay = new Map<string, number>();
   trades.forEach((t: any) => {
     const day = format(new Date(t.exitTime), "yyyy-MM-dd");
@@ -49,14 +45,12 @@ export default async function DashboardContent() {
     equityData.push({ day, equity: Number(eq.toFixed(2)), dailyPnl: Number(pnl.toFixed(2)) });
   });
 
-  // Cumulative R
   let cr = 0;
   const cumRSeries = trades
     .map((t: any) => ({ day: format(new Date(t.exitTime), "yyyy-MM-dd"), r: t.R || 0 }))
     .sort((a, b) => a.day.localeCompare(b.day))
     .map((d) => ({ day: d.day, cumR: (cr += d.r) }));
 
-  // Strategy performance
   const strat = new Map<string, { sumR: number; count: number }>();
   trades.forEach((t: any) => {
     const tags = t.tags?.length ? t.tags : ["Untagged"];
@@ -72,7 +66,6 @@ export default async function DashboardContent() {
     avgR: v.count ? Number((v.sumR / v.count).toFixed(2)) : 0
   }));
 
-  // Win rate by instrument
   const byInstr = new Map<string, { wins: number; total: number }>();
   trades.forEach((t: any) => {
     const key = t.symbol || "Unknown";
@@ -86,16 +79,12 @@ export default async function DashboardContent() {
     winRate: v.total ? Math.round((v.wins / v.total) * 100) : 0
   }));
 
-  // Win rate pie
-  const winRatePie = [
-    { name: "Wins", value: wins },
-    { name: "Losses", value: losses }
-  ];
+  const winRatePie = [{ name: "Wins", value: wins }, { name: "Losses", value: losses }];
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-        <div className="card">
+        <div className="card card-accent-blue">
           <div className="label">Win Rate</div>
           <div className="kpi">{winRate}%</div>
         </div>
@@ -103,13 +92,13 @@ export default async function DashboardContent() {
           <div className="label">Avg R</div>
           <div className="kpi">{avgR.toFixed(2)}</div>
         </div>
-        <div className="card">
+        <div className="card card-accent-green">
           <div className="label">Avg Win</div>
-          <div className="kpi">${avgWin.toFixed(2)}</div>
+          <div className="kpi text-green-600">${avgWin.toFixed(2)}</div>
         </div>
-        <div className="card">
+        <div className="card card-accent-red">
           <div className="label">Avg Loss</div>
-          <div className="kpi">-${avgLoss.toFixed(2)}</div>
+          <div className="kpi text-red-600">-${avgLoss.toFixed(2)}</div>
         </div>
         <div className="card">
           <div className="label">Profit Factor</div>
