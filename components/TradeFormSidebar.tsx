@@ -236,6 +236,40 @@ export default function TradeFormSidebar({ open, onClose, onSaved, editing }: Pr
 }
 
 function UploadArea({ tradeId }: { tradeId: string }) {
+  const [files, setFiles] = useState<any[]>([]);
+  const [refresh, setRefresh] = useState(0);
+
+  const loadTrade = async () => {
+    const res = await fetch(`/api/trades/${tradeId}`);
+    const data = await res.json();
+    setFiles(data.trade?.files || []);
+  };
+  useEffect(() => { loadTrade(); }, [tradeId, refresh]);
+
+  const onUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const fd = new FormData();
+    fd.append("tradeId", tradeId);
+    fd.append("file", f);
+    const res = await fetch("/api/upload", { method: "POST", body: fd });
+    if (!res.ok) { alert("Upload failed"); return; }
+    setRefresh(x => x + 1);
+  };
+
+  return (
+    <div className="mt-2">
+      <div className="label">Uploads (.png, .jpg, .mp4)</div>
+      <input type="file" accept=".png,.jpg,.jpeg,.mp4" onChange={onUpload} />
+      <div className="mt-2 grid grid-cols-3 gap-2">
+        {files.map((f: any) => (
+          <a key={f.fileId} href={`/api/media/${f.fileId}`} target="_blank" className="block text-xs underline">
+            {f.filename}
+          </a>
+        ))}
+      </div>
+    </div>
+  );
   // unchanged
   return null as any;
 }
