@@ -18,6 +18,7 @@ export default function SidebarNav() {
         const active = pathname === it.href;
         return (
           <Link
+            prefetch
             key={it.href}
             href={it.href}
             className={clsx(
