@@ -1,5 +1,4 @@
 "use client";
-
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
 
 export default function CumulativeR({ data }: { data: { day: string; cumR: number }[] }) {
@@ -17,7 +16,7 @@ export default function CumulativeR({ data }: { data: { day: string; cumR: numbe
           <XAxis dataKey="day" />
           <YAxis />
           <Tooltip />
-          <Line type="monotone" dataKey="cumR" stroke="url(#rGrad)" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+          <Line type="monotone" dataKey="cumR" stroke="url(#rGrad)" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} isAnimationActive animationDuration={600} />
         </LineChart>
       </ResponsiveContainer>
     </div>
