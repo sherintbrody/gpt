@@ -1,17 +1,16 @@
 import "./globals.css";
-import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
 import SidebarNav from "@/components/SidebarNav";
+import Toaster from "@/components/Toaster";
+import PageFade from "@/components/PageFade";
 
-export const metadata = {
-  title: "Trade Journal",
-  description: "FundingPips-style trading journal"
-};
+export const metadata = { title: "Trade Journal", description: "FundingPips-style trading journal" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html suppressHydrationWarning lang="en">
       <body className="min-h-screen">
+        <Toaster />
         <div className="flex min-h-screen">
           <aside className="hidden md:block w-60 border-r border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-4">
             <div className="mb-4 flex items-center justify-between">
@@ -34,7 +33,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </div>
               </div>
             </header>
-            <main className="container py-6">{children}</main>
+            <main className="container py-6">
+              <PageFade>{children}</PageFade>
+            </main>
           </div>
         </div>
       </body>
