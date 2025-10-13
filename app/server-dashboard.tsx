@@ -5,13 +5,14 @@ import EquityCurve from "@/components/charts/EquityCurve";
 import CumulativeR from "@/components/charts/CumulativeR";
 import StrategyBar from "@/components/charts/StrategyBar";
 import WinRateByInstrument from "@/components/charts/WinRateByInstrument";
+import WinRatePie from "@/components/charts/WinRatePie";
 import { unstable_noStore as noStore } from "next/cache";
 
 export default async function DashboardContent() {
-  noStore(); // ensure fresh data every request
+  noStore();
   await connectDB();
 
-  // Treat docs without status as closed for backward compatibility
+  // Only closed trades affect P&L/Win rate
   const trades = await Trade.find({
     $or: [{ status: "closed" }, { status: { $exists: false } }]
   })
@@ -19,26 +20,34 @@ export default async function DashboardContent() {
     .lean();
 
   const total = trades.length;
-  const wins = trades.filter((t: any) => (t.netPnl ?? 0) > 0).length;
+  const winners = trades.filter((t: any) => (t.netPnl ?? 0) > 0);
+  const losers = trades.filter((t: any) => (t.netPnl ?? 0) < 0);
+  const wins = winners.length;
+  const losses = losers.length;
   const winRate = total ? Math.round((wins / total) * 100) : 0;
+
   const totalCommission = trades.reduce((s: number, t: any) => s + (t.commission || 0), 0);
   const Rvals = trades.map((t: any) => t.R).filter((r: any) => Number.isFinite(r) && r !== 0);
   const avgR = Rvals.length ? Rvals.reduce((s: number, r: number) => s + r, 0) / Rvals.length : 0;
 
-  // Equity curve by day
+  const avgWin = winners.length ? winners.reduce((s: number, t: any) => s + (t.netPnl || 0), 0) / winners.length : 0;
+  const avgLoss = losers.length ? Math.abs(losers.reduce((s: number, t: any) => s + (t.netPnl || 0), 0) / losers.length) : 0;
+  const sumWins = winners.reduce((s: number, t: any) => s + (t.netPnl || 0), 0);
+  const sumLossesAbs = Math.abs(losers.reduce((s: number, t: any) => s + (t.netPnl || 0), 0));
+  const profitFactor = sumLossesAbs > 0 ? sumWins / sumLossesAbs : (sumWins > 0 ? Infinity : 0);
+
+  // Daily P&L and equity
   const byDay = new Map<string, number>();
   trades.forEach((t: any) => {
     const day = format(new Date(t.exitTime), "yyyy-MM-dd");
     byDay.set(day, (byDay.get(day) || 0) + (t.netPnl || 0));
   });
-  const equitySeries: { day: string; equity: number }[] = [];
+  const equityData: { day: string; equity: number; dailyPnl: number }[] = [];
   let eq = 0;
-  [...byDay.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .forEach(([day, pnl]) => {
-      eq += pnl;
-      equitySeries.push({ day, equity: Number(eq.toFixed(2)) });
-    });
+  [...byDay.entries()].sort(([a], [b]) => a.localeCompare(b)).forEach(([day, pnl]) => {
+    eq += pnl;
+    equityData.push({ day, equity: Number(eq.toFixed(2)), dailyPnl: Number(pnl.toFixed(2)) });
+  });
 
   // Cumulative R
   let cr = 0;
@@ -77,9 +86,15 @@ export default async function DashboardContent() {
     winRate: v.total ? Math.round((v.wins / v.total) * 100) : 0
   }));
 
+  // Win rate pie
+  const winRatePie = [
+    { name: "Wins", value: wins },
+    { name: "Losses", value: losses }
+  ];
+
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         <div className="card">
           <div className="label">Win Rate</div>
           <div className="kpi">{winRate}%</div>
@@ -89,19 +104,27 @@ export default async function DashboardContent() {
           <div className="kpi">{avgR.toFixed(2)}</div>
         </div>
         <div className="card">
+          <div className="label">Avg Win</div>
+          <div className="kpi">${avgWin.toFixed(2)}</div>
+        </div>
+        <div className="card">
+          <div className="label">Avg Loss</div>
+          <div className="kpi">-${avgLoss.toFixed(2)}</div>
+        </div>
+        <div className="card">
+          <div className="label">Profit Factor</div>
+          <div className="kpi">{profitFactor === Infinity ? "∞" : profitFactor.toFixed(2)}</div>
+        </div>
+        <div className="card">
           <div className="label">Total Commission</div>
           <div className="kpi">${totalCommission.toFixed(2)}</div>
         </div>
-        <div className="card">
-          <div className="label">Trades</div>
-          <div className="kpi">{total}</div>
-        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <div className="card">
           <div className="mb-2 font-semibold">Equity Curve</div>
-          <EquityCurve data={equitySeries} />
+          <EquityCurve data={equityData} />
         </div>
         <div className="card">
           <div className="mb-2 font-semibold">Cumulative R</div>
@@ -109,14 +132,20 @@ export default async function DashboardContent() {
         </div>
       </div>
 
-      <div className="card">
-        <div className="mb-2 font-semibold">Performance by Strategy</div>
-        <StrategyBar data={strategyData} />
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <div className="card">
+          <div className="mb-2 font-semibold">Win Rate</div>
+          <WinRatePie data={winRatePie} />
+        </div>
+        <div className="card">
+          <div className="mb-2 font-semibold">Win Rate by Instrument</div>
+          <WinRateByInstrument data={winRateInstrumentData} />
+        </div>
       </div>
 
       <div className="card">
-        <div className="mb-2 font-semibold">Win Rate by Instrument</div>
-        <WinRateByInstrument data={winRateInstrumentData} />
+        <div className="mb-2 font-semibold">Performance by Strategy</div>
+        <StrategyBar data={strategyData} />
       </div>
     </div>
   );
