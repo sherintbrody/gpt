@@ -41,5 +41,18 @@ body { @apply bg-white text-ink dark:bg-neutral-950 dark:text-neutral-100; }
 .skeleton { @apply bg-neutral-200 dark:bg-neutral-800 rounded animate-pulse; }
 
 /* Page fade */
+        /* KPIs */
+.kpi { @apply text-3xl font-bold tracking-tight; }
+.kpi-pos { @apply text-green-600; }
+.kpi-neg { @apply text-rose-600; }
+
+/* Subtle fade transitions between pages */
+.fade-enter { opacity: 0; transform: translateY(4px); transition: all 200ms ease; }
+.fade-enter-active { opacity: 1; transform: translateY(0); }
+
+/* Skeleton shimmer */
+.skeleton { @apply animate-pulse rounded-md bg-neutral-200 dark:bg-neutral-800; }
+.skel-line { height: 12px; }
+.skel-card { height: 120px; }
 @keyframes page-fade { from { opacity: .85; transform: translateY(4px);} to { opacity: 1; transform: translateY(0);} }
 .animate-page-fade { animation: page-fade .18s ease-out; }
