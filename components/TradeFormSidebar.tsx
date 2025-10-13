@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useState } from "react";
 
 type Props = {
@@ -9,6 +10,15 @@ type Props = {
 };
 
 const instruments = ["XAUUSD", "NAS100", "US30", "CUSTOM"] as const;
+
+function toLocalInput(dt?: string | Date): string {
+  if (!dt) return "";
+  const d = typeof dt === "string" ? new Date(dt) : dt;
+  if (isNaN(d.getTime())) return "";
+  const off = d.getTimezoneOffset();
+  const local = new Date(d.getTime() - off * 60000);
+  return local.toISOString().slice(0, 16);
+}
 
 export default function TradeFormSidebar({ open, onClose, onSaved, editing }: Props) {
   const [loading, setLoading] = useState(false);
@@ -34,20 +44,22 @@ export default function TradeFormSidebar({ open, onClose, onSaved, editing }: Pr
 
   useEffect(() => {
     if (editing) {
-      setSymbolChoice(["XAUUSD", "NAS100", "US30"].includes(editing.symbol) ? editing.symbol : "CUSTOM");
-      setCustomSymbol(["XAUUSD", "NAS100", "US30"].includes(editing.symbol) ? "" : (editing.symbol || ""));
+      const isPreset = ["XAUUSD", "NAS100", "US30"].includes(editing.symbol);
+      setSymbolChoice(isPreset ? editing.symbol : "CUSTOM");
+      setCustomSymbol(isPreset ? "" : (editing.symbol || ""));
+
       setForm({
         status: editing.status ?? "closed",
         direction: editing.direction,
-        entryPrice: editing.entryPrice,
+        entryPrice: editing.entryPrice ?? "",
         exitPrice: editing.exitPrice ?? "",
         stopLoss: editing.stopLoss ?? "",
         takeProfit: editing.takeProfit ?? "",
-        quantity: editing.quantity,
+        quantity: editing.quantity ?? "",
         commission: editing.commission ?? "",
         netPnl: editing.netPnl ?? "",
-        entryTime: editing.entryTime?.slice(0, 16),
-        exitTime: editing.exitTime ? String(editing.exitTime).slice(0, 16) : "",
+        entryTime: toLocalInput(editing.entryTime),
+        exitTime: toLocalInput(editing.exitTime),
         tags: (editing.tags || []).join(","),
         accountType: editing.accountType ?? "Demo",
         comments: editing.comments ?? "",
@@ -102,11 +114,19 @@ export default function TradeFormSidebar({ open, onClose, onSaved, editing }: Pr
       payload.exitPrice = Number(form.exitPrice);
       payload.netPnl = Number(form.netPnl);
       payload.exitTime = new Date(form.exitTime).toISOString();
+    } else {
+      delete payload.exitPrice;
+      delete payload.netPnl;
+      delete payload.exitTime;
     }
 
     const method = editing ? "PATCH" : "POST";
     const url = editing ? `/api/trades/${editing._id}` : "/api/trades";
-    const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
     setLoading(false);
     if (!res.ok) {
       const msg = await res.text();
@@ -120,12 +140,18 @@ export default function TradeFormSidebar({ open, onClose, onSaved, editing }: Pr
 
   return (
     <>
-      <div className={`fixed inset-0 bg-black/30 transition-opacity ${open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`} onClick={onClose} />
+      {/* Overlay */}
+      <div
+        className={`fixed inset-0 bg-black/30 transition-opacity ${open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
+        onClick={onClose}
+      />
+      {/* Sidebar */}
       <div className={`fixed right-0 top-0 h-full w-full sm:w-[520px] bg-white dark:bg-neutral-950 border-l border-neutral-200 dark:border-neutral-800 shadow-xl transition-transform ${open ? "translate-x-0" : "translate-x-full"}`}>
         <div className="p-4 flex items-center justify-between border-b border-neutral-200 dark:border-neutral-800">
           <div className="font-semibold">{editing ? "Edit Trade" : "New Trade"}</div>
           <button className="btn-outline" onClick={onClose}>Close</button>
         </div>
+
         <div className="p-4 space-y-3 overflow-y-auto h-[calc(100%-56px)]">
           <div>
             <div className="label">Instrument</div>
@@ -159,31 +185,31 @@ export default function TradeFormSidebar({ open, onClose, onSaved, editing }: Pr
           <div className="grid grid-cols-2 gap-2">
             <div>
               <div className="label">Entry Price</div>
-              <input className={inputCls} type="number" value={form.entryPrice} onChange={(e) => setForm({ ...form, entryPrice: e.target.value })} />
+              <input className={inputCls} type="number" step="any" value={form.entryPrice} onChange={(e) => setForm({ ...form, entryPrice: e.target.value })} />
             </div>
             <div>
               <div className="label">Exit Price {isOpen && "(disabled while Open)"}</div>
-              <input className={inputCls} type="number" value={form.exitPrice} disabled={isOpen} onChange={(e) => setForm({ ...form, exitPrice: e.target.value })} />
+              <input className={inputCls} type="number" step="any" value={form.exitPrice} disabled={isOpen} onChange={(e) => setForm({ ...form, exitPrice: e.target.value })} />
             </div>
             <div>
               <div className="label">Stop Loss (optional)</div>
-              <input className={inputCls} type="number" value={form.stopLoss} onChange={(e) => setForm({ ...form, stopLoss: e.target.value })} />
+              <input className={inputCls} type="number" step="any" value={form.stopLoss} onChange={(e) => setForm({ ...form, stopLoss: e.target.value })} />
             </div>
             <div>
               <div className="label">Take Profit (optional)</div>
-              <input className={inputCls} type="number" value={form.takeProfit} onChange={(e) => setForm({ ...form, takeProfit: e.target.value })} />
+              <input className={inputCls} type="number" step="any" value={form.takeProfit} onChange={(e) => setForm({ ...form, takeProfit: e.target.value })} />
             </div>
             <div>
               <div className="label">Quantity (Lot size)</div>
-              <input className={inputCls} type="number" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
+              <input className={inputCls} type="number" step="any" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
             </div>
             <div>
               <div className="label">Commission</div>
-              <input className={inputCls} type="number" value={form.commission} onChange={(e) => setForm({ ...form, commission: e.target.value })} />
+              <input className={inputCls} type="number" step="any" value={form.commission} onChange={(e) => setForm({ ...form, commission: e.target.value })} />
             </div>
             <div>
               <div className="label">Net P&L {isOpen && "(disabled while Open)"}</div>
-              <input className={inputCls} type="number" value={form.netPnl} disabled={isOpen} onChange={(e) => setForm({ ...form, netPnl: e.target.value })} />
+              <input className={inputCls} type="number" step="any" value={form.netPnl} disabled={isOpen} onChange={(e) => setForm({ ...form, netPnl: e.target.value })} />
             </div>
           </div>
 
@@ -238,38 +264,73 @@ export default function TradeFormSidebar({ open, onClose, onSaved, editing }: Pr
 function UploadArea({ tradeId }: { tradeId: string }) {
   const [files, setFiles] = useState<any[]>([]);
   const [refresh, setRefresh] = useState(0);
+  const [uploading, setUploading] = useState(false);
 
   const loadTrade = async () => {
-    const res = await fetch(`/api/trades/${tradeId}`);
-    const data = await res.json();
-    setFiles(data.trade?.files || []);
+    try {
+      const res = await fetch(`/api/trades/${tradeId}`, { cache: "no-store" });
+      const data = await res.json();
+      setFiles(data.trade?.files || []);
+    } catch (e) {
+      // ignore
+    }
   };
+
   useEffect(() => { loadTrade(); }, [tradeId, refresh]);
 
   const onUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    const fd = new FormData();
-    fd.append("tradeId", tradeId);
-    fd.append("file", f);
-    const res = await fetch("/api/upload", { method: "POST", body: fd });
-    if (!res.ok) { alert("Upload failed"); return; }
-    setRefresh(x => x + 1);
+    const list = e.target.files ? Array.from(e.target.files) : [];
+    if (!list.length) return;
+    setUploading(true);
+    try {
+      for (const f of list) {
+        const fd = new FormData();
+        fd.append("tradeId", tradeId);
+        fd.append("file", f);
+        const res = await fetch("/api/upload", { method: "POST", body: fd });
+        if (!res.ok) {
+          const msg = await res.text();
+          throw new Error(msg || "Upload failed");
+        }
+      }
+      setRefresh(x => x + 1);
+    } catch (err: any) {
+      alert(err?.message || "Upload failed");
+    } finally {
+      setUploading(false);
+      e.currentTarget.value = "";
+    }
   };
 
   return (
     <div className="mt-2">
       <div className="label">Uploads (.png, .jpg, .mp4)</div>
-      <input type="file" accept=".png,.jpg,.jpeg,.mp4" onChange={onUpload} />
-      <div className="mt-2 grid grid-cols-3 gap-2">
-        {files.map((f: any) => (
-          <a key={f.fileId} href={`/api/media/${f.fileId}`} target="_blank" className="block text-xs underline">
-            {f.filename}
-          </a>
-        ))}
+      <input type="file" accept=".png,.jpg,.jpeg,.mp4" multiple onChange={onUpload} />
+      {uploading && <div className="text-xs text-neutral-500 mt-1">Uploading…</div>}
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        {files.map((f: any) => {
+          const id = f.fileId || f._id;
+          const url = `/api/media/${id}`;
+          const isImage = (f.mimeType || "").startsWith("image/");
+          const isVideo = (f.mimeType || "").startsWith("video/");
+          return (
+            <div key={String(id)} className="rounded border border-neutral-200 p-1 text-xs dark:border-neutral-700">
+              {isImage ? (
+                <a href={url} target="_blank" rel="noreferrer">
+                  <img src={url} alt={f.filename} className="h-24 w-full object-cover rounded" />
+                </a>
+              ) : isVideo ? (
+                <video src={url} className="h-24 w-full rounded" controls />
+              ) : (
+                <a className="underline block truncate" href={url} target="_blank" rel="noreferrer">
+                  {f.filename}
+                </a>
+              )}
+              <div className="mt-1 truncate" title={f.filename}>{f.filename}</div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
-  // unchanged
-  return null as any;
 }
