@@ -1,9 +1,9 @@
+export const runtime = "nodejs";
+
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB, getGridFSBucket } from "@/lib/mongoose";
 import { Trade } from "@/models/Trade";
 import { ObjectId } from "mongodb";
-
-export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   await connectDB();
@@ -16,19 +16,23 @@ export async function POST(req: NextRequest) {
   const trade = await Trade.findById(tradeId);
   if (!trade) return new NextResponse("Trade not found", { status: 404 });
 
-  const mime = file.type.toLowerCase();
-  if (!["image/png","image/jpg","image/jpeg","video/mp4"].includes(mime)) {
+  const mime = (file.type || "").toLowerCase();
+  if (!["image/png", "image/jpg", "image/jpeg", "video/mp4"].includes(mime)) {
     return new NextResponse("Invalid file type", { status: 400 });
   }
 
   const bucket = await getGridFSBucket();
-  const filename = `${"trade_"+tradeId}/${file.name}`;
+  const filename = `trade_${tradeId}/${file.name}`;
   const uploadStream = bucket.openUploadStream(filename, {
     metadata: { tradeId, mimeType: mime }
   });
+
   const buf = Buffer.from(await file.arrayBuffer());
+
   await new Promise<void>((resolve, reject) => {
-    uploadStream.end(buf, (err) => err ? reject(err) : resolve());
+    uploadStream.once("finish", resolve);
+    uploadStream.once("error", reject);
+    uploadStream.end(buf);
   });
 
   const fileId = uploadStream.id as ObjectId;
