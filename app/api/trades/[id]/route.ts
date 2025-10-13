@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB, getGridFSBucket } from "@/lib/mongoose";
 import { Trade } from "@/models/Trade";
 import { ObjectId } from "mongodb";
-
+export const runtime = "nodejs";
 export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
   await connectDB();
   const trade = await Trade.findById(params.id).lean();
