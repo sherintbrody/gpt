@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-
+import type { Db } from "mongodb";
 const uri = process.env.MONGODB_URI!;
 const dbName = process.env.DB_NAME || "tradejournal";
 
@@ -24,7 +24,7 @@ export async function connectDB() {
 
 export async function getGridFSBucket() {
   const conn = await connectDB();
-  const db = conn.connection.db;
   const { GridFSBucket } = await import("mongodb");
+  const db: Db = conn.connection.db!; // assert it's defined after connect()
   return new GridFSBucket(db, { bucketName: "trade_media" });
 }
