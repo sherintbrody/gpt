@@ -16,7 +16,7 @@ export default function StrategyBar({ data }: { data: { name: string; avgR: numb
           <XAxis dataKey="name" />
           <YAxis />
           <Tooltip />
-          <Bar dataKey="avgR" fill="url(#barBlue)" />
+          <Bar dataKey="avgR" fill="url(#barBlue)" isAnimationActive animationDuration={500} />
         </BarChart>
       </ResponsiveContainer>
     </div>
