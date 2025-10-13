@@ -6,7 +6,8 @@ import clsx from "clsx";
 const items = [
   { href: "/", label: "Dashboard" },
   { href: "/trades", label: "Trades" },
-  { href: "/calendar", label: "P&L Calendar" }
+  { href: "/calendar", label: "P&L Calendar" },
+  { href: "/journal", label: "Journal" }
 ];
 
 export default function SidebarNav() {
